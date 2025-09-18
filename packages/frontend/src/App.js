@@ -1,99 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import './App.css';
+import React, { useState } from 'react';
+import { CssBaseline, Container, AppBar, Toolbar, Typography, Box } from '@mui/material';
+import TaskList from './TaskList';
+import TaskForm from './TaskForm';
 
 function App() {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [newItem, setNewItem] = useState('');
+  const [editingTask, setEditingTask] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/items');
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const result = await response.json();
-      setData(result);
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch data: ' + err.message);
-      console.error('Error fetching data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!newItem.trim()) return;
-
-    try {
-      const response = await fetch('/api/items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: newItem }),
+  const handleSave = async (task) => {
+    if (editingTask) {
+      // Edit existing task
+      await fetch(`/api/tasks/${editingTask.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task)
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to add item');
-      }
-
-      const result = await response.json();
-      setData([...data, result]);
-      setNewItem('');
-    } catch (err) {
-      setError('Error adding item: ' + err.message);
-      console.error('Error adding item:', err);
+      setEditingTask(null);
+    } else {
+      // Add new task
+      await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task)
+      });
     }
+    setRefreshKey(k => k + 1);
   };
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>React Frontend with Node Backend</h1>
-        <p>Connected to in-memory database</p>
-      </header>
-      
-      <main>
-        <section className="add-item-section">
-          <h2>Add New Item</h2>
-          <form onSubmit={handleSubmit}>
-            <input
-              type="text"
-              value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              placeholder="Enter item name"
-            />
-            <button type="submit">Add Item</button>
-          </form>
-        </section>
-
-        <section className="items-section">
-          <h2>Items from Database</h2>
-          {loading && <p>Loading data...</p>}
-          {error && <p className="error">{error}</p>}
-          {!loading && !error && (
-            <ul>
-              {data.length > 0 ? (
-                data.map((item) => (
-                  <li key={item.id}>{item.name}</li>
-                ))
-              ) : (
-                <p>No items found. Add some!</p>
-              )}
-            </ul>
-          )}
-        </section>
-      </main>
-    </div>
+    <>
+      <CssBaseline />
+      <AppBar position="static" color="primary">
+        <Toolbar>
+          <Typography variant="h6" color="inherit" noWrap>
+            TODO App
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
+        <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+          <TaskForm onSave={handleSave} initialTask={editingTask} />
+          <TaskList key={refreshKey} onEdit={setEditingTask} />
+        </Box>
+      </Container>
+    </>
   );
 }
 
